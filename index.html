@@ -1,0 +1,3497 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pundimas — Sistem Verifikasi Emas</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --gold: #B8922E;
+    --gold-light: #9A7520;
+    --gold-pale: #7A5C10;
+    --gold-dim: #C9A84C;
+    --black: #F7F3EC;
+    --off-black: #F0EAE0;
+    --dark: #E8E0D0;
+    --mid: #D4C9B0;
+    --surface: #FFFFFF;
+    --border: rgba(184,146,46,0.25);
+    --border-subtle: rgba(0,0,0,0.07);
+    --text-primary: #12080A;
+    --text-secondary: rgba(18,8,10,0.68);
+    --text-dim: rgba(18,8,10,0.45);
+    --valid: #2A7A52;
+    --invalid: #C0392B;
+    --warning: #B8660A;
+    --font-display: 'DM Sans', sans-serif;
+    --font-body: 'DM Sans', sans-serif;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--black);
+    color: var(--text-primary);
+    font-family: var(--font-body);
+    font-size: 14px;
+    line-height: 1.6;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ===================== PRELOADER ===================== */
+  #preloader {
+    position: fixed;
+    inset: 0;
+    background: var(--black);
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    transition: opacity 0.7s ease, visibility 0.7s ease;
+  }
+
+  #preloader.hidden {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+  }
+
+  .scan-stage {
+    position: relative;
+    width: 180px;
+    height: 90px;
+    margin-bottom: 48px;
+  }
+
+  .gold-bar {
+    position: absolute;
+    inset: 0;
+    border-radius: 6px;
+    background: linear-gradient(
+      135deg,
+      #7a5a1a 0%, #c9a84c 20%, #f0d878 38%,
+      #e2c97e 50%, #b8922e 65%, #c9a84c 80%, #8c6e2f 100%
+    );
+    box-shadow:
+      0 4px 24px rgba(201,168,76,0.25),
+      inset 0 1px 0 rgba(255,255,255,0.3),
+      inset 0 -1px 0 rgba(0,0,0,0.4);
+    overflow: hidden;
+  }
+
+  .gold-bar-text {
+    position: absolute;
+    top: 38%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-family: var(--font-display);
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    color: rgba(0,0,0,0.35);
+    text-shadow: 0 1px 0 rgba(255,255,255,0.2);
+    white-space: nowrap;
+    user-select: none;
+  }
+
+  .gold-bar-sub {
+    position: absolute;
+    bottom: 13px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 7.5px;
+    letter-spacing: 0.18em;
+    color: rgba(0,0,0,0.28);
+    white-space: nowrap;
+    font-family: var(--font-body);
+    user-select: none;
+  }
+
+  .gold-bar::after {
+    content: '';
+    position: absolute;
+    top: 0; left: -100%; right: 0; bottom: 0;
+    background: linear-gradient(
+      105deg,
+      transparent 30%,
+      rgba(255,255,255,0.18) 50%,
+      transparent 70%
+    );
+    animation: shimmer 2.5s ease-in-out infinite;
+  }
+
+  @keyframes shimmer {
+    0% { left: -100%; }
+    100% { left: 100%; }
+  }
+
+  .scan-line {
+    position: absolute;
+    left: -6px;
+    right: -6px;
+    top: 0;
+    height: 2px;
+    background: linear-gradient(90deg,
+      transparent 0%,
+      rgba(184,146,46,0.3) 15%,
+      rgba(184,146,46,0.95) 40%,
+      #B8922E 50%,
+      rgba(184,146,46,0.95) 60%,
+      rgba(184,146,46,0.3) 85%,
+      transparent 100%
+    );
+    box-shadow: 0 0 6px 2px rgba(184,146,46,0.4), 0 0 18px 4px rgba(184,146,46,0.2);
+    animation: scanSweep 1.6s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+    border-radius: 2px;
+  }
+
+  @keyframes scanSweep {
+    0%   { top: -2px; opacity: 0; }
+    8%   { opacity: 1; }
+    92%  { opacity: 1; }
+    100% { top: calc(100% + 2px); opacity: 0; }
+  }
+
+  .scan-bracket {
+    position: absolute;
+    width: 14px;
+    height: 14px;
+    border-color: rgba(184,146,46,0.7);
+    border-style: solid;
+    animation: bracketPulse 1.6s ease-in-out infinite;
+  }
+
+  .scan-bracket.tl { top: -6px; left: -6px; border-width: 2px 0 0 2px; }
+  .scan-bracket.tr { top: -6px; right: -6px; border-width: 2px 2px 0 0; }
+  .scan-bracket.bl { bottom: -6px; left: -6px; border-width: 0 0 2px 2px; }
+  .scan-bracket.br { bottom: -6px; right: -6px; border-width: 0 2px 2px 0; }
+
+  @keyframes bracketPulse {
+    0%, 100% { opacity: 0.5; }
+    50% { opacity: 1; }
+  }
+
+  .scan-status-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+  }
+
+  .scan-status-text {
+    font-size: 11px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    height: 18px;
+    transition: opacity 0.3s;
+  }
+
+  .scan-status-text span { color: rgba(184,146,46,0.85); }
+
+  .scan-progress-track {
+    width: 180px;
+    height: 2px;
+    background: rgba(0,0,0,0.1);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  .scan-progress-fill {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, rgba(184,146,46,0.5), rgba(184,146,46,0.9));
+    border-radius: 2px;
+    transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 0 8px rgba(184,146,46,0.3);
+  }
+
+  .preloader-brand {
+    position: absolute;
+    bottom: 36px;
+    left: 50%;
+    transform: translateX(-50%);
+    text-align: center;
+  }
+
+  .preloader-brand-name {
+    font-family: var(--font-display);
+    font-size: 15px;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    color: rgba(201,168,76,0.35);
+  }
+
+  /* ===================== PAGES ===================== */
+  .page { display: none; min-height: 100vh; }
+  .page.active { display: flex; flex-direction: column; }
+
+  /* ===================== CUSTOMER PAGE ===================== */
+  #page-customer {
+    background: var(--black);
+    align-items: center;
+    justify-content: flex-start;
+    flex-direction: column;
+    padding: 40px 20px;
+    position: relative;
+    overflow: hidden;
+    gap: 0;
+  }
+
+  #page-customer::before {
+    content: '';
+    position: fixed;
+    top: -200px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 600px;
+    height: 600px;
+    background: radial-gradient(ellipse, rgba(184,146,46,0.07) 0%, transparent 70%);
+    pointer-events: none;
+  }
+
+  #page-customer::after {
+    content: '';
+    position: fixed;
+    bottom: -100px;
+    right: -100px;
+    width: 400px;
+    height: 400px;
+    background: radial-gradient(ellipse, rgba(184,146,46,0.04) 0%, transparent 70%);
+    pointer-events: none;
+  }
+
+  .customer-wrap {
+    width: 100%;
+    max-width: 480px;
+    margin: 0 auto;
+    animation: fadeUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(24px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* Brand Header */
+  .brand-header {
+    text-align: center;
+    margin-bottom: 36px;
+  }
+
+  .brand-logo {
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 8px;
+  }
+
+  .brand-emblem {
+    width: 42px;
+    height: 42px;
+    position: relative;
+  }
+
+  .brand-emblem svg {
+    width: 100%;
+    height: 100%;
+  }
+
+  .brand-name {
+    font-family: var(--font-display);
+    font-size: 28px;
+    font-weight: 500;
+    letter-spacing: 0.12em;
+    color: var(--gold-light);
+    text-transform: uppercase;
+  }
+
+  .brand-tagline {
+    font-size: 11px;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-top: 4px;
+  }
+
+  /* Status Badge */
+  .status-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 28px;
+    margin-bottom: 16px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .status-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--gold), transparent);
+    opacity: 0.5;
+  }
+
+  .status-badge {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+
+  .status-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    flex-shrink: 0;
+  }
+
+  .status-icon.valid {
+    background: rgba(76, 175, 125, 0.12);
+    border: 1px solid rgba(76, 175, 125, 0.3);
+    color: var(--valid);
+  }
+
+  .status-icon.invalid {
+    background: rgba(224, 82, 82, 0.12);
+    border: 1px solid rgba(224, 82, 82, 0.3);
+    color: var(--invalid);
+  }
+
+  .status-text-wrap .status-label {
+    font-size: 11px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 2px;
+  }
+
+  .status-text-wrap .status-value {
+    font-family: var(--font-display);
+    font-size: 22px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+  }
+
+  .status-value.valid { color: var(--valid); }
+  .status-value.invalid { color: var(--invalid); }
+
+  /* Gold Info Grid */
+  .gold-info-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+  }
+
+  .info-item {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid var(--border-subtle);
+    border-radius: 10px;
+    padding: 14px 16px;
+  }
+
+  .info-item.full-width {
+    grid-column: 1 / -1;
+  }
+
+  .info-label {
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 5px;
+  }
+
+  .info-value {
+    font-family: var(--font-display);
+    font-size: 17px;
+    font-weight: 500;
+    color: var(--text-primary);
+    letter-spacing: 0.02em;
+  }
+
+  .info-value.mono {
+    font-family: 'DM Sans', monospace;
+    font-size: 13px;
+    font-weight: 400;
+    letter-spacing: 0.08em;
+    color: var(--gold-light);
+  }
+
+  /* Purity Bar */
+  .purity-bar-wrap {
+    margin-top: 6px;
+  }
+
+  .purity-bar-track {
+    height: 3px;
+    background: rgba(255,255,255,0.06);
+    border-radius: 2px;
+    margin-top: 8px;
+    overflow: hidden;
+  }
+
+  .purity-bar-fill {
+    height: 100%;
+    width: 99.99%;
+    background: linear-gradient(90deg, var(--gold-dim), var(--gold-light));
+    border-radius: 2px;
+    animation: barFill 1.2s cubic-bezier(0.16,1,0.3,1) forwards;
+    transform-origin: left;
+  }
+
+  @keyframes barFill {
+    from { transform: scaleX(0); }
+    to { transform: scaleX(1); }
+  }
+
+  /* Scan History for Customer */
+  .scan-info-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 20px 24px;
+    margin-bottom: 16px;
+  }
+
+  .scan-info-title {
+    font-size: 11px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 14px;
+  }
+
+  .scan-info-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border-subtle);
+  }
+
+  .scan-info-row:last-child { border-bottom: none; }
+
+  .scan-info-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    background: rgba(201,168,76,0.08);
+    border: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    flex-shrink: 0;
+  }
+
+  .scan-info-text .scan-info-label {
+    font-size: 10px;
+    color: var(--text-dim);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  .scan-info-text .scan-info-val {
+    font-size: 13px;
+    color: var(--text-primary);
+    margin-top: 1px;
+  }
+
+  /* Warning box */
+  .anomaly-warning {
+    background: rgba(224,154,66,0.08);
+    border: 1px solid rgba(224,154,66,0.25);
+    border-radius: 10px;
+    padding: 12px 16px;
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    margin-bottom: 16px;
+  }
+
+  .anomaly-warning-icon { font-size: 16px; margin-top: 1px; }
+  .anomaly-warning-text { font-size: 12px; color: rgba(224,154,66,0.9); line-height: 1.5; }
+
+  /* Footer note */
+  .customer-footer {
+    text-align: center;
+    margin-top: 28px;
+  }
+
+  .customer-footer p {
+    font-size: 11px;
+    color: var(--text-dim);
+    letter-spacing: 0.05em;
+    line-height: 1.7;
+  }
+
+  .gold-divider {
+    width: 40px;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--gold), transparent);
+    margin: 16px auto;
+  }
+
+  /* ===================== CUSTOMER — DESKTOP 2-COLUMN ===================== */
+  @media (min-width: 1024px) {
+    #page-customer {
+      align-items: flex-start;
+      justify-content: center;
+      padding: 48px 40px;
+    }
+
+    .customer-wrap {
+      width: 100%;
+      max-width: 1024px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: 1fr 324px;
+      gap: 40px;
+      align-items: start;
+    }
+
+    /* Left column — certificate, fluid */
+    .col-left {
+      position: sticky;
+      top: 48px;
+      min-width: 0;
+    }
+
+    /* Right column — fixed 324px */
+    .col-right {
+      width: 324px;
+      flex-shrink: 0;
+    }
+    /* Hide mobile brand header on desktop */
+    .brand-header { display: none; }
+
+    /* Hide mobile status card on desktop */
+    .status-card { display: none; }
+
+    /* Show desktop certificate panel */
+    .cert-panel { display: flex !important; }
+
+    /* Hide mobile-only scan info card */
+    .scan-info-card.mobile-only { display: none; }
+
+    /* Footer full-width centered below grid */
+    .customer-footer-wrap {
+      grid-column: 1 / -1;
+      text-align: center;
+    }
+  }
+
+  /* ===================== CERTIFICATE PANEL (desktop only) ===================== */
+  .cert-panel {
+    display: none; /* hidden on mobile, shown on desktop via media query */
+    flex-direction: column;
+    background: var(--surface);
+    border: 1px solid rgba(201,168,76,0.25);
+    border-radius: 20px;
+    padding: 40px 36px 36px;
+    position: relative;
+    overflow: hidden;
+    min-height: 560px;
+  }
+
+  /* Corner ornaments */
+  .cert-panel::before, .cert-panel::after {
+    content: '';
+    position: absolute;
+    width: 60px;
+    height: 60px;
+    border-color: rgba(201,168,76,0.25);
+    border-style: solid;
+  }
+  .cert-panel::before { top: 14px; left: 14px; border-width: 1px 0 0 1px; }
+  .cert-panel::after  { bottom: 14px; right: 14px; border-width: 0 1px 1px 0; }
+
+  /* Extra corner ornaments via pseudo on inner element */
+  .cert-corner-tr, .cert-corner-bl {
+    position: absolute;
+    width: 60px;
+    height: 60px;
+    border-color: rgba(201,168,76,0.25);
+    border-style: solid;
+  }
+  .cert-corner-tr { top: 14px; right: 14px; border-width: 1px 1px 0 0; }
+  .cert-corner-bl { bottom: 14px; left: 14px; border-width: 0 0 1px 1px; }
+
+  /* Top gold rule */
+  .cert-top-rule {
+    width: 100%;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--gold), transparent);
+    margin-bottom: 28px;
+    opacity: 0.6;
+  }
+
+  /* Watermark */
+  .cert-watermark {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-family: var(--font-display);
+    font-size: 96px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    color: rgba(201,168,76,0.04);
+    text-transform: uppercase;
+    white-space: nowrap;
+    pointer-events: none;
+    user-select: none;
+  }
+
+  /* Cert brand */
+  .cert-brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+
+  .cert-brand-name {
+    font-family: var(--font-display);
+    font-size: 22px;
+    font-weight: 500;
+    letter-spacing: 0.15em;
+    color: var(--gold-light);
+    text-transform: uppercase;
+  }
+
+  .cert-brand-sub {
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-top: 2px;
+  }
+
+  /* Opening sentence */
+  .cert-opening {
+    font-family: var(--font-display);
+    font-size: 14px;
+    font-style: italic;
+    color: var(--text-secondary);
+    line-height: 1.7;
+    margin-bottom: 28px;
+    padding-bottom: 24px;
+    border-bottom: 1px solid var(--border-subtle);
+    letter-spacing: 0.01em;
+  }
+
+  /* Status row on cert */
+  .cert-status-row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 32px;
+  }
+
+  .cert-status-icon {
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    flex-shrink: 0;
+  }
+
+  .cert-status-icon.valid {
+    background: rgba(76,175,125,0.1);
+    border: 1px solid rgba(76,175,125,0.3);
+    color: var(--valid);
+  }
+
+  .cert-status-label {
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 3px;
+  }
+
+  .cert-status-value {
+    font-family: var(--font-display);
+    font-size: 28px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    color: var(--valid);
+    line-height: 1;
+  }
+
+  /* Cert fields — no boxes, just label + value with divider */
+  .cert-fields {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0;
+    flex: 1;
+  }
+
+  .cert-field {
+    padding: 16px 0;
+    border-bottom: 1px solid var(--border-subtle);
+  }
+
+  .cert-field:nth-last-child(-n+2) { border-bottom: none; }
+
+  .cert-field.span-full {
+    grid-column: 1 / -1;
+  }
+
+  .cert-field-label {
+    font-size: 9px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 5px;
+  }
+
+  .cert-field-value {
+    font-family: var(--font-display);
+    font-size: 26px;
+    font-weight: 500;
+    color: var(--text-primary);
+    letter-spacing: 0.01em;
+    line-height: 1.2;
+  }
+
+  .cert-field-value.mono {
+    font-family: 'DM Sans', monospace;
+    font-size: 15px;
+    letter-spacing: 0.1em;
+    color: var(--gold-light);
+  }
+
+  /* Purity bar inside cert */
+  .cert-purity-wrap { margin-top: 4px; }
+  .cert-purity-track {
+    height: 2px;
+    background: rgba(255,255,255,0.06);
+    border-radius: 2px;
+    margin-top: 6px;
+    overflow: hidden;
+  }
+  .cert-purity-fill {
+    height: 100%;
+    width: 99.99%;
+    background: linear-gradient(90deg, var(--gold-dim), var(--gold-light));
+    border-radius: 2px;
+    animation: barFill 1.2s cubic-bezier(0.16,1,0.3,1) forwards;
+    transform-origin: left;
+  }
+
+  /* Bottom seal row */
+  .cert-seal-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 24px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border-subtle);
+  }
+
+  .cert-seal-text {
+    font-size: 10px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    line-height: 1.6;
+  }
+
+  .cert-seal-emblem {
+    width: 44px;
+    height: 44px;
+    opacity: 0.5;
+  }
+
+  /* ===================== SCAN HISTORY — mobile location fix ===================== */
+  .scan-history-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 4px;
+  }
+
+  .scan-history-loc-wrap {
+    text-align: right;
+  }
+
+  .scan-history-city {
+    font-size: 12px;
+    color: var(--text-secondary);
+    line-height: 1.3;
+  }
+
+  .scan-history-province {
+    font-size: 10px;
+    color: var(--text-dim);
+    line-height: 1.3;
+  }
+
+  .scan-history-date {
+    font-size: 11px;
+    color: var(--text-dim);
+    margin-top: 2px;
+  }
+
+  /* CTA order — mobile: below detail scan, desktop: above */
+  .col-right {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .cta-card--right { order: 2; }
+  .scan-detail-card { order: 1; }
+
+  @media (min-width: 1024px) {
+    .cta-card--right { order: 1; }
+    .scan-detail-card { order: 2; }
+  }
+
+  /* Footer top spacing */
+  .customer-footer-wrap {
+    margin-top: 40px;
+  }
+
+  /* Footer wrap — full width, centered, outside the 2-col grid */
+  .customer-footer-wrap {
+    width: 100%;
+    max-width: 1024px;
+    margin: 0 auto;
+    text-align: center;
+  }
+
+  @media (min-width: 1024px) {
+    .customer-footer-wrap {
+      padding: 0 40px;
+    }
+  }
+
+  /* ===================== ADMIN - LOGIN ===================== */
+  #page-login {
+    background: var(--black);
+    align-items: center;
+    justify-content: center;
+    padding: 40px 20px;
+    position: relative;
+  }
+
+  #page-login::before {
+    content: '';
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background:
+      radial-gradient(ellipse at 20% 20%, rgba(184,146,46,0.06) 0%, transparent 50%),
+      radial-gradient(ellipse at 80% 80%, rgba(184,146,46,0.04) 0%, transparent 50%);
+    pointer-events: none;
+  }
+
+  .login-wrap {
+    width: 100%;
+    max-width: 380px;
+    animation: fadeUp 0.7s cubic-bezier(0.16,1,0.3,1) forwards;
+  }
+
+  .login-header {
+    text-align: center;
+    margin-bottom: 36px;
+  }
+
+  .login-title {
+    font-family: var(--font-display);
+    font-size: 32px;
+    font-weight: 400;
+    color: var(--gold-light);
+    letter-spacing: 0.08em;
+  }
+
+  .login-subtitle {
+    font-size: 11px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-top: 6px;
+  }
+
+  .login-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 32px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .login-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--gold), transparent);
+  }
+
+  .form-group {
+    margin-bottom: 18px;
+  }
+
+  .form-label {
+    display: block;
+    font-size: 11px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 8px;
+  }
+
+  .form-input {
+    width: 100%;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--border-subtle);
+    border-radius: 10px;
+    padding: 12px 16px;
+    color: var(--text-primary);
+    font-family: var(--font-body);
+    font-size: 14px;
+    outline: none;
+    transition: border-color 0.2s, background 0.2s;
+  }
+
+  .form-input:focus {
+    border-color: rgba(201,168,76,0.4);
+    background: rgba(201,168,76,0.04);
+  }
+
+  .form-input::placeholder { color: var(--text-dim); }
+
+  .btn-primary {
+    width: 100%;
+    background: linear-gradient(135deg, var(--gold-dim), var(--gold));
+    color: var(--black);
+    border: none;
+    border-radius: 10px;
+    padding: 13px;
+    font-family: var(--font-body);
+    font-size: 13px;
+    font-weight: 500;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: opacity 0.2s, transform 0.15s;
+    margin-top: 8px;
+  }
+
+  .btn-primary:hover { opacity: 0.88; transform: translateY(-1px); }
+  .btn-primary:active { transform: translateY(0); }
+
+  .login-error {
+    background: rgba(224,82,82,0.1);
+    border: 1px solid rgba(224,82,82,0.25);
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-size: 12px;
+    color: var(--invalid);
+    margin-top: 14px;
+    display: none;
+  }
+
+  .login-error.show { display: block; }
+
+  /* ===================== ADMIN DASHBOARD ===================== */
+  #page-dashboard {
+    background: var(--black);
+    flex-direction: row;
+    min-height: 100vh;
+  }
+
+  /* Sidebar */
+  .sidebar {
+    width: 220px;
+    flex-shrink: 0;
+    background: var(--surface);
+    border-right: 1px solid var(--border-subtle);
+    display: flex;
+    flex-direction: column;
+    padding: 28px 0;
+    position: fixed;
+    top: 0; left: 0; bottom: 0;
+    z-index: 100;
+  }
+
+  .sidebar-brand {
+    padding: 0 24px 28px;
+    border-bottom: 1px solid var(--border-subtle);
+    margin-bottom: 20px;
+  }
+
+  .sidebar-brand-name {
+    font-family: var(--font-display);
+    font-size: 20px;
+    font-weight: 500;
+    color: var(--gold-light);
+    letter-spacing: 0.1em;
+  }
+
+  .sidebar-brand-sub {
+    font-size: 10px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-top: 2px;
+  }
+
+  .sidebar-nav {
+    flex: 1;
+    padding: 0 12px;
+  }
+
+  .nav-section-label {
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    padding: 0 12px;
+    margin-bottom: 8px;
+    margin-top: 16px;
+  }
+
+  .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+    color: var(--text-secondary);
+    font-size: 13px;
+    margin-bottom: 2px;
+    border: none;
+    background: none;
+    width: 100%;
+    text-align: left;
+  }
+
+  .nav-item:hover {
+    background: rgba(255,255,255,0.05);
+    color: var(--text-primary);
+  }
+
+  .nav-item.active {
+    background: rgba(201,168,76,0.1);
+    color: var(--gold-light);
+    border: 1px solid rgba(201,168,76,0.15);
+  }
+
+  .nav-icon { font-size: 15px; width: 20px; text-align: center; }
+
+  .sidebar-footer {
+    padding: 16px 24px 0;
+    border-top: 1px solid var(--border-subtle);
+  }
+
+  .admin-info {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+
+  .admin-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--gold-dim), var(--gold));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--black);
+    flex-shrink: 0;
+  }
+
+  .admin-name { font-size: 13px; color: var(--text-primary); }
+  .admin-role { font-size: 10px; color: var(--text-dim); letter-spacing: 0.1em; text-transform: uppercase; }
+
+  .btn-logout {
+    width: 100%;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--border-subtle);
+    border-radius: 8px;
+    padding: 8px;
+    color: var(--text-secondary);
+    font-size: 12px;
+    font-family: var(--font-body);
+    cursor: pointer;
+    transition: all 0.15s;
+    letter-spacing: 0.05em;
+  }
+
+  .btn-logout:hover {
+    background: rgba(224,82,82,0.1);
+    border-color: rgba(224,82,82,0.2);
+    color: var(--invalid);
+  }
+
+  /* Main Content */
+  .main-content {
+    margin-left: 220px;
+    flex: 1;
+    padding: 32px 36px;
+    min-height: 100vh;
+  }
+
+  .page-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 28px;
+  }
+
+  .page-title {
+    font-family: var(--font-display);
+    font-size: 28px;
+    font-weight: 400;
+    color: var(--text-primary);
+    letter-spacing: 0.03em;
+  }
+
+  .page-subtitle {
+    font-size: 12px;
+    color: var(--text-dim);
+    margin-top: 4px;
+    letter-spacing: 0.05em;
+  }
+
+  .header-date {
+    font-size: 12px;
+    color: var(--text-dim);
+    text-align: right;
+  }
+
+  /* Stats Row */
+  .stats-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    margin-bottom: 28px;
+  }
+
+  .stat-card {
+    background: var(--surface);
+    border: 1px solid var(--border-subtle);
+    border-radius: 14px;
+    padding: 20px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .stat-card::after {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(201,168,76,0.3), transparent);
+  }
+
+  .stat-label {
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 10px;
+  }
+
+  .stat-value {
+    font-family: var(--font-display);
+    font-size: 32px;
+    font-weight: 500;
+    color: var(--text-primary);
+    line-height: 1;
+    margin-bottom: 6px;
+  }
+
+  .stat-value.gold { color: var(--gold-light); }
+  .stat-value.warning { color: var(--warning); }
+
+  .stat-change {
+    font-size: 11px;
+    color: var(--text-dim);
+  }
+
+  .stat-change.up { color: var(--valid); }
+  .stat-change.down { color: var(--invalid); }
+
+  /* Content panels */
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--border-subtle);
+    border-radius: 16px;
+    overflow: hidden;
+    margin-bottom: 20px;
+  }
+
+  .panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 14px;
+    border-bottom: 1px solid var(--border-subtle);
+  }
+
+  .panel-title {
+    font-family: var(--font-display);
+    font-size: 17px;
+    font-weight: 500;
+    color: var(--text-primary);
+    letter-spacing: 0.03em;
+  }
+
+  .panel-meta {
+    font-size: 11px;
+    color: var(--text-dim);
+    letter-spacing: 0.1em;
+  }
+
+  /* Table */
+  .data-table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  .data-table th {
+    font-size: 10px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    padding: 12px 14px;
+    text-align: left;
+    border-bottom: 1px solid var(--border-subtle);
+    font-weight: 400;
+  }
+
+  .data-table td {
+    padding: 11px 14px;
+    font-size: 13px;
+    color: var(--text-secondary);
+    border-bottom: 1px solid rgba(255,255,255,0.03);
+    vertical-align: middle;
+  }
+
+  .data-table tr:last-child td { border-bottom: none; }
+
+  .data-table tr:hover td {
+    background: rgba(255,255,255,0.02);
+    color: var(--text-primary);
+  }
+
+  .serial-code {
+    font-family: 'DM Sans', monospace;
+    font-size: 12px;
+    color: var(--gold-light);
+    letter-spacing: 0.08em;
+  }
+
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 9px;
+    border-radius: 20px;
+    font-size: 11px;
+    letter-spacing: 0.05em;
+  }
+
+  .badge.valid {
+    background: rgba(76,175,125,0.1);
+    border: 1px solid rgba(76,175,125,0.2);
+    color: var(--valid);
+  }
+
+  .badge.warning {
+    background: rgba(224,154,66,0.1);
+    border: 1px solid rgba(224,154,66,0.25);
+    color: var(--warning);
+  }
+
+  .badge.invalid {
+    background: rgba(224,82,82,0.1);
+    border: 1px solid rgba(224,82,82,0.2);
+    color: var(--invalid);
+  }
+
+  .badge-dot {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: currentColor;
+  }
+
+  /* Gold detail panel */
+  .gold-detail-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    padding: 22px;
+  }
+
+  .detail-item {
+    padding: 14px 16px;
+    background: rgba(255,255,255,0.02);
+    border: 1px solid var(--border-subtle);
+    border-radius: 10px;
+  }
+
+  .detail-label {
+    font-size: 10px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 5px;
+  }
+
+  .detail-value {
+    font-family: var(--font-display);
+    font-size: 18px;
+    color: var(--text-primary);
+    letter-spacing: 0.02em;
+  }
+
+  /* Alert anomaly panel */
+  .alert-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    padding: 16px 22px;
+    border-bottom: 1px solid rgba(255,255,255,0.03);
+  }
+
+  .alert-item:last-child { border-bottom: none; }
+
+  .alert-icon-wrap {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    flex-shrink: 0;
+  }
+
+  .alert-icon-wrap.warning {
+    background: rgba(224,154,66,0.1);
+    border: 1px solid rgba(224,154,66,0.2);
+  }
+
+  .alert-icon-wrap.danger {
+    background: rgba(224,82,82,0.1);
+    border: 1px solid rgba(224,82,82,0.2);
+  }
+
+  .alert-content .alert-title {
+    font-size: 13px;
+    color: var(--text-primary);
+    margin-bottom: 3px;
+  }
+
+  .alert-content .alert-desc {
+    font-size: 12px;
+    color: var(--text-dim);
+    line-height: 1.5;
+  }
+
+  .alert-time {
+    font-size: 11px;
+    color: var(--text-dim);
+    margin-left: auto;
+    flex-shrink: 0;
+    padding-top: 2px;
+  }
+
+  /* Map placeholder */
+  .map-placeholder {
+    height: 200px;
+    background: rgba(255,255,255,0.02);
+    border-radius: 12px;
+    margin: 16px 22px 22px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    overflow: hidden;
+    border: 1px solid var(--border-subtle);
+  }
+
+  .map-dots {
+    position: absolute;
+    inset: 0;
+  }
+
+  .map-dot {
+    position: absolute;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--gold);
+    opacity: 0.7;
+    animation: pulse 2s ease-in-out infinite;
+  }
+
+  .map-dot::after {
+    content: '';
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    width: 20px; height: 20px;
+    border-radius: 50%;
+    border: 1px solid var(--gold);
+    opacity: 0.4;
+    animation: ripple 2s ease-out infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 0.7; transform: scale(1); }
+    50% { opacity: 1; transform: scale(1.1); }
+  }
+
+  @keyframes ripple {
+    0% { transform: translate(-50%, -50%) scale(1); opacity: 0.4; }
+    100% { transform: translate(-50%, -50%) scale(3); opacity: 0; }
+  }
+
+  .map-grid {
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(184,146,46,0.08) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(184,146,46,0.08) 1px, transparent 1px);
+    background-size: 30px 30px;
+  }
+
+  .map-label {
+    position: relative;
+    font-size: 11px;
+    color: var(--text-dim);
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    text-align: center;
+  }
+
+  /* Sub views */
+  .dashboard-view { display: none; }
+  .dashboard-view.active { display: block; }
+
+  /* Search bar */
+  .search-bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--border-subtle);
+    border-radius: 10px;
+    padding: 8px 14px;
+    max-width: 280px;
+  }
+
+  .search-bar input {
+    background: none;
+    border: none;
+    outline: none;
+    color: var(--text-primary);
+    font-family: var(--font-body);
+    font-size: 13px;
+    width: 100%;
+  }
+
+  .search-bar input::placeholder { color: var(--text-dim); }
+  .search-icon { color: var(--text-dim); font-size: 14px; }
+
+  /* Scan History Timeline */
+  .scan-history-entry {
+    display: flex;
+    gap: 14px;
+    align-items: flex-start;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--border-subtle);
+    position: relative;
+  }
+
+  .scan-history-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.12);
+    border: 1px solid rgba(255,255,255,0.15);
+    flex-shrink: 0;
+    margin-top: 4px;
+  }
+
+  .scan-history-dot.current-dot {
+    background: var(--gold);
+    border-color: var(--gold-light);
+    box-shadow: 0 0 8px rgba(201,168,76,0.4);
+  }
+
+  .scan-history-body { flex: 1; }
+
+  .scan-history-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 4px;
+  }
+
+  .scan-history-badge {
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    padding: 2px 8px;
+    border-radius: 20px;
+  }
+
+  .current-badge {
+    background: rgba(201,168,76,0.15);
+    border: 1px solid rgba(201,168,76,0.3);
+    color: var(--gold-light);
+  }
+
+  .prev-badge {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--border-subtle);
+    color: var(--text-dim);
+  }
+
+  .scan-history-time {
+    font-size: 11px;
+    color: var(--text-dim);
+  }
+
+  .scan-history-loc {
+    font-size: 12px;
+    color: var(--text-secondary);
+    margin-top: 2px;
+  }
+
+  /* CTA Card */
+  .cta-card {
+    background: rgba(201,168,76,0.06);
+    border: 1px solid rgba(201,168,76,0.2);
+    border-radius: 16px;
+    padding: 20px;
+    margin-bottom: 16px;
+  }
+
+  .cta-icon { display: none; }
+
+  .cta-title {
+    font-family: var(--font-display);
+    font-size: 16px;
+    font-weight: 500;
+    color: var(--gold-light);
+    margin-bottom: 5px;
+    letter-spacing: 0.02em;
+  }
+
+  .cta-desc {
+    font-size: 12px;
+    color: var(--text-secondary);
+    line-height: 1.6;
+    margin-bottom: 14px;
+  }
+
+  .cta-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    background: linear-gradient(135deg, var(--gold-dim), var(--gold));
+    color: var(--black);
+    border: none;
+    border-radius: 8px;
+    padding: 11px 18px;
+    font-family: var(--font-body);
+    font-size: 13px;
+    font-weight: 500;
+    letter-spacing: 0.06em;
+    cursor: pointer;
+    text-decoration: none;
+    transition: opacity 0.2s, transform 0.15s;
+  }
+
+  .cta-btn:hover { opacity: 0.88; transform: translateY(-1px); }
+
+  /* Demo nav */
+  .demo-nav {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    padding: 24px 20px;
+    background: #FFFFFF;
+    border-top: 1px solid var(--border-subtle);
+    z-index: 999;
+  }
+
+  .demo-btn {
+    flex: 1;
+    text-align: center;
+    background: #FFFFFF;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 14px;
+    color: var(--gold);
+    font-size: 11px;
+    font-family: var(--font-body);
+    font-weight: 500;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.15s;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+  }
+
+  .demo-btn:hover {
+    background: var(--dark);
+    color: var(--gold);
+  }
+
+  @media (min-width: 1024px) {
+    .demo-nav {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      padding: 0;
+      background: none;
+      border-top: none;
+      justify-content: flex-end;
+      width: auto;
+    }
+
+    .demo-btn { flex: none; }
+  }
+
+  .demo-btn {
+    background: rgba(201,168,76,0.15);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 14px;
+    color: var(--gold-light);
+    font-size: 11px;
+    font-family: var(--font-body);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.15s;
+    backdrop-filter: blur(8px);
+  }
+
+  .demo-btn:hover { background: rgba(201,168,76,0.25); }
+
+  /* Two column layout for dashboard */
+  .two-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+  }
+
+  /* ===================== GOLD DETAIL VIEW ===================== */
+  .back-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 12px;
+    color: var(--text-dim);
+    letter-spacing: 0.08em;
+    cursor: pointer;
+    background: none;
+    border: none;
+    font-family: var(--font-body);
+    padding: 0;
+    margin-bottom: 20px;
+    transition: color 0.15s;
+  }
+
+  .back-btn:hover { color: var(--gold-light); }
+
+  .gold-detail-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 24px;
+  }
+
+  .gold-detail-serial {
+    font-family: 'DM Sans', monospace;
+    font-size: 13px;
+    color: var(--gold-light);
+    letter-spacing: 0.1em;
+    margin-bottom: 4px;
+  }
+
+  /* Pagination */
+  .pagination-wrap {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 22px;
+    border-top: 1px solid var(--border-subtle);
+  }
+
+  .pagination-info {
+    font-size: 12px;
+    color: var(--text-dim);
+  }
+
+  .pagination-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .page-btn {
+    width: 30px;
+    height: 30px;
+    border-radius: 7px;
+    border: 1px solid var(--border-subtle);
+    background: rgba(255,255,255,0.03);
+    color: var(--text-secondary);
+    font-size: 13px;
+    cursor: pointer;
+    font-family: var(--font-body);
+    transition: all 0.15s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .page-btn:hover { background: rgba(255,255,255,0.07); color: var(--text-primary); }
+  .page-btn.active {
+    background: rgba(201,168,76,0.15);
+    border-color: rgba(201,168,76,0.3);
+    color: var(--gold-light);
+  }
+  .page-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+  .rows-select {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--border-subtle);
+    border-radius: 7px;
+    padding: 5px 10px;
+    color: var(--text-secondary);
+    font-size: 12px;
+    font-family: var(--font-body);
+    outline: none;
+    cursor: pointer;
+  }
+
+  .rows-select option { background: var(--surface); }
+
+  .serial-link {
+    color: var(--gold-light);
+    cursor: pointer;
+    font-family: 'DM Sans', monospace;
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    text-decoration: none;
+    border-bottom: 1px dashed rgba(201,168,76,0.3);
+    transition: border-color 0.15s, color 0.15s;
+  }
+
+  .serial-link:hover {
+    color: var(--gold-pale);
+    border-bottom-color: var(--gold);
+  }
+
+  /* Serial link — clickable in tables */
+  .serial-link {
+    font-family: 'DM Sans', monospace;
+    font-size: 12px;
+    color: var(--gold-light);
+    letter-spacing: 0.08em;
+    cursor: pointer;
+    border-bottom: 1px dashed rgba(201,168,76,0.4);
+    transition: color 0.15s, border-color 0.15s;
+  }
+
+  .serial-link:hover {
+    color: var(--gold-pale);
+    border-bottom-color: var(--gold-light);
+  }
+
+  /* Gold detail header */
+  .gold-detail-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 24px;
+  }
+
+  .gold-detail-serial {
+    font-family: 'DM Sans', monospace;
+    font-size: 12px;
+    letter-spacing: 0.15em;
+    color: var(--gold);
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+
+  /* Back button */
+  .back-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--border-subtle);
+    border-radius: 8px;
+    padding: 7px 14px;
+    color: var(--text-secondary);
+    font-family: var(--font-body);
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.15s;
+    margin-bottom: 20px;
+    letter-spacing: 0.05em;
+  }
+
+  .back-btn:hover {
+    background: rgba(255,255,255,0.07);
+    color: var(--text-primary);
+  }
+
+  /* detail-value mono */
+  .detail-value.mono {
+    font-family: 'DM Sans', monospace;
+  }
+
+  /* Pagination */
+  .pagination-wrap {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 22px;
+    border-top: 1px solid var(--border-subtle);
+  }
+
+  .pagination-info {
+    font-size: 12px;
+    color: var(--text-dim);
+  }
+
+  .pagination-controls {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+  }
+
+  .page-btn {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--border-subtle);
+    border-radius: 6px;
+    padding: 5px 10px;
+    color: var(--text-secondary);
+    font-family: var(--font-body);
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.15s;
+    min-width: 32px;
+    text-align: center;
+  }
+
+  .page-btn:hover:not(:disabled) {
+    background: rgba(255,255,255,0.08);
+    color: var(--text-primary);
+  }
+
+  .page-btn.active {
+    background: rgba(201,168,76,0.15);
+    border-color: rgba(201,168,76,0.3);
+    color: var(--gold-light);
+  }
+
+  .page-btn:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+  }
+
+  /* Rows select */
+  .rows-select {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--border-subtle);
+    border-radius: 6px;
+    padding: 4px 8px;
+    color: var(--text-primary);
+    font-family: var(--font-body);
+    font-size: 12px;
+    outline: none;
+    cursor: pointer;
+  }
+
+  /* ===================== MOBILE TABLE CARDS ===================== */
+  .mobile-cards { display: none; }
+
+  @media (max-width: 768px) {
+    /* Hide tables on mobile */
+    .data-table { display: none; }
+    .data-table + .data-table { display: none; }
+
+    /* Show mobile cards */
+    .mobile-cards { display: block; }
+
+    .mobile-card {
+      padding: 14px 14px;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .mobile-card:last-child { border-bottom: none; }
+
+    .mobile-card-row1 {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 4px;
+    }
+
+    .mobile-card-row2 {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 6px;
+    }
+
+    .mobile-card-row3 {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .mobile-card-no {
+      font-size: 10px;
+      color: var(--text-dim);
+      letter-spacing: 0.1em;
+    }
+
+    .mobile-card-scan-no {
+      font-size: 11px;
+      color: var(--text-dim);
+      letter-spacing: 0.05em;
+    }
+
+    .mobile-card-serial {
+      font-family: 'DM Sans', monospace;
+      font-size: 13px;
+      color: var(--gold-light);
+      letter-spacing: 0.06em;
+      cursor: pointer;
+      border-bottom: 1px dashed rgba(201,168,76,0.4);
+    }
+
+    .mobile-card-ip {
+      font-size: 11px;
+      color: var(--text-dim);
+      letter-spacing: 0.04em;
+    }
+
+    .mobile-card-loc {
+      font-size: 12px;
+      color: var(--text-secondary);
+      text-align: right;
+    }
+
+    .mobile-card-date {
+      font-size: 11px;
+      color: var(--text-dim);
+      text-align: right;
+    }
+  }
+
+  /* Responsive */
+  @media (max-width: 900px) {
+    .stats-row { grid-template-columns: 1fr 1fr; }
+    .two-col { grid-template-columns: 1fr; }
+  }
+
+  @media (max-width: 768px) {
+    .sidebar {
+      transform: translateX(-100%);
+      transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      width: 260px;
+      z-index: 200;
+    }
+
+    .sidebar.open { transform: translateX(0); }
+
+    .main-content {
+      margin-left: 0;
+      padding: 16px;
+      padding-top: 72px;
+    }
+
+    /* Overlay */
+    .sidebar-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.6);
+      z-index: 199;
+      backdrop-filter: blur(2px);
+    }
+    .sidebar-overlay.show { display: block; }
+
+    /* Mobile sticky header */
+    .mobile-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      height: 52px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border-subtle);
+      padding: 0 18px;
+      z-index: 198;
+    }
+
+    .mobile-header-brand {
+      font-family: var(--font-display);
+      font-size: 18px;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      color: var(--gold-light);
+      text-transform: uppercase;
+    }
+
+    .mobile-hamburger {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 6px;
+      border-radius: 8px;
+      transition: background 0.15s;
+    }
+
+    .mobile-hamburger:hover { background: rgba(255,255,255,0.06); }
+
+    .mobile-hamburger span {
+      display: block;
+      width: 20px;
+      height: 2px;
+      background: var(--gold-light);
+      border-radius: 2px;
+    }
+
+    .stats-row { grid-template-columns: 1fr 1fr; }
+  }
+
+  @media (min-width: 769px) {
+    .mobile-header { display: none; }
+    .sidebar-overlay { display: none !important; }
+    .hamburger-btn { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ==================== PRELOADER ==================== -->
+<div id="preloader">
+  <div class="scan-stage">
+    <div class="gold-bar">
+      <div class="gold-bar-text">Pundimas</div>
+      <div class="gold-bar-sub">999.9 · AU · 10g</div>
+    </div>
+    <div class="scan-line"></div>
+    <div class="scan-bracket tl"></div>
+    <div class="scan-bracket tr"></div>
+    <div class="scan-bracket bl"></div>
+    <div class="scan-bracket br"></div>
+  </div>
+  <div class="scan-status-wrap">
+    <div class="scan-status-text" id="scan-status-text">Membaca <span>QR Code</span>...</div>
+    <div class="scan-progress-track">
+      <div class="scan-progress-fill" id="scan-progress"></div>
+    </div>
+  </div>
+  <div class="preloader-brand">
+    <div class="preloader-brand-name">Pundimas</div>
+  </div>
+</div>
+
+
+<!-- ==================== PAGE: CUSTOMER ==================== -->
+<div id="page-customer" class="page active">
+  <div class="customer-wrap">
+
+    <!-- ===== MOBILE/TABLET: Brand Header (hidden on desktop) ===== -->
+    <div class="brand-header">
+      <div class="brand-logo">
+        <div class="brand-emblem">
+          <svg viewBox="0 0 42 42" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <polygon points="21,4 38,32 4,32" fill="none" stroke="#C9A84C" stroke-width="1.2"/>
+            <polygon points="21,10 33,30 9,30" fill="rgba(201,168,76,0.08)" stroke="#C9A84C" stroke-width="0.6"/>
+            <circle cx="21" cy="21" r="3" fill="#C9A84C"/>
+            <line x1="21" y1="4" x2="21" y2="38" stroke="#C9A84C" stroke-width="0.5" stroke-dasharray="2,3" opacity="0.4"/>
+          </svg>
+        </div>
+        <span class="brand-name">Pundimas</span>
+      </div>
+      <p class="brand-tagline">Sistem Verifikasi Logam Mulia</p>
+    </div>
+
+    <!-- ===== LEFT COLUMN (desktop: certificate panel) ===== -->
+    <div class="col-left">
+
+      <!-- MOBILE/TABLET: Status Card (hidden on desktop) -->
+      <div class="status-card">
+        <div class="status-badge">
+          <div class="status-icon valid">✓</div>
+          <div class="status-text-wrap">
+            <div class="status-label">Status Keaslian</div>
+            <div class="status-value valid">TERVERIFIKASI</div>
+          </div>
+        </div>
+        <div class="gold-info-grid">
+          <div class="info-item full-width">
+            <div class="info-label">Nomor Seri</div>
+            <div class="info-value mono">PMD-2024-AU-008821</div>
+          </div>
+          <div class="info-item">
+            <div class="info-label">Berat</div>
+            <div class="info-value">10 gram</div>
+          </div>
+          <div class="info-item">
+            <div class="info-label">Kadar</div>
+            <div class="info-value">24 Karat</div>
+          </div>
+          <div class="info-item full-width">
+            <div class="info-label">Kemurnian</div>
+            <div class="info-value">999.9 ‰</div>
+            <div class="purity-bar-wrap">
+              <div class="purity-bar-track"><div class="purity-bar-fill"></div></div>
+            </div>
+          </div>
+          <div class="info-item">
+            <div class="info-label">Tanggal Produksi</div>
+            <div class="info-value" style="font-size:15px">14 Mar 2024</div>
+          </div>
+          <div class="info-item">
+            <div class="info-label">Batch</div>
+            <div class="info-value mono" style="font-size:13px">B-2024-03-07</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- DESKTOP ONLY: Certificate Panel -->
+      <div class="cert-panel">
+        <!-- Corner ornaments -->
+        <div class="cert-corner-tr"></div>
+        <div class="cert-corner-bl"></div>
+        <!-- Watermark -->
+        <div class="cert-watermark">Pundimas</div>
+
+        <!-- Brand -->
+        <div class="cert-brand">
+          <svg width="32" height="32" viewBox="0 0 42 42" fill="none">
+            <polygon points="21,4 38,32 4,32" fill="none" stroke="#C9A84C" stroke-width="1.2"/>
+            <polygon points="21,10 33,30 9,30" fill="rgba(201,168,76,0.08)" stroke="#C9A84C" stroke-width="0.6"/>
+            <circle cx="21" cy="21" r="3" fill="#C9A84C"/>
+          </svg>
+          <div>
+            <div class="cert-brand-name">Pundimas</div>
+            <div class="cert-brand-sub">PT Pundimas Logam Mulia</div>
+          </div>
+        </div>
+
+        <div class="cert-top-rule"></div>
+
+        <!-- Opening sentence -->
+        <div class="cert-opening">
+          Dokumen digital ini menyatakan bahwa keping logam mulia dengan identitas di bawah telah terdaftar, diproduksi, dan terverifikasi keasliannya oleh PT Pundimas Logam Mulia.
+        </div>
+
+        <!-- Status -->
+        <div class="cert-status-row">
+          <div class="cert-status-icon valid">✓</div>
+          <div>
+            <div class="cert-status-label">Status Keaslian</div>
+            <div class="cert-status-value">TERVERIFIKASI</div>
+          </div>
+        </div>
+
+        <!-- Fields — no boxes -->
+        <div class="cert-fields">
+          <div class="cert-field span-full">
+            <div class="cert-field-label">Nomor Seri</div>
+            <div class="cert-field-value mono">PMD-2024-AU-008821</div>
+          </div>
+          <div class="cert-field">
+            <div class="cert-field-label">Berat</div>
+            <div class="cert-field-value">10 gram</div>
+          </div>
+          <div class="cert-field">
+            <div class="cert-field-label">Kadar</div>
+            <div class="cert-field-value">24 Karat</div>
+          </div>
+          <div class="cert-field span-full">
+            <div class="cert-field-label">Kemurnian</div>
+            <div class="cert-field-value">999.9 ‰</div>
+            <div class="cert-purity-wrap">
+              <div class="cert-purity-track"><div class="cert-purity-fill"></div></div>
+            </div>
+          </div>
+          <div class="cert-field">
+            <div class="cert-field-label">Tanggal Produksi</div>
+            <div class="cert-field-value">14 Mar 2024</div>
+          </div>
+          <div class="cert-field">
+            <div class="cert-field-label">Nomor Batch</div>
+            <div class="cert-field-value mono">B-2024-03-07</div>
+          </div>
+          <div class="cert-field">
+            <div class="cert-field-label">Waktu Scan</div>
+            <div class="cert-field-value" style="font-size:18px;" id="cert-scan-time">—</div>
+          </div>
+          <div class="cert-field">
+            <div class="cert-field-label">Lokasi Scan</div>
+            <div class="cert-field-value" style="font-size:18px;">Bandung, Jawa Barat</div>
+          </div>
+        </div>
+
+        <!-- Seal row -->
+        <div class="cert-seal-row">
+          <div class="cert-seal-text">
+            Diterbitkan oleh<br>
+            <strong style="color:var(--gold-light);letter-spacing:0.05em;">PT Pundimas Logam Mulia</strong>
+          </div>
+          <svg class="cert-seal-emblem" viewBox="0 0 42 42" fill="none">
+            <polygon points="21,4 38,32 4,32" fill="none" stroke="#C9A84C" stroke-width="1.2"/>
+            <polygon points="21,10 33,30 9,30" fill="rgba(201,168,76,0.15)" stroke="#C9A84C" stroke-width="0.6"/>
+            <circle cx="21" cy="21" r="3" fill="#C9A84C"/>
+          </svg>
+        </div>
+      </div>
+
+      <!-- Mobile/tablet: Scan Info (hidden on desktop via col-right) -->
+      <div class="scan-info-card mobile-only">
+        <div class="scan-info-title">Informasi Scan Ini</div>
+        <div class="scan-info-row">
+          <div class="scan-info-icon">🕐</div>
+          <div class="scan-info-text">
+            <div class="scan-info-label">Waktu</div>
+            <div class="scan-info-val" id="scan-time">—</div>
+          </div>
+        </div>
+        <div class="scan-info-row">
+          <div class="scan-info-icon">📍</div>
+          <div class="scan-info-text">
+            <div class="scan-info-label">Lokasi (estimasi dari IP)</div>
+            <div class="scan-info-val">Bandung, Jawa Barat, ID</div>
+          </div>
+        </div>
+        <div class="scan-info-row">
+          <div class="scan-info-icon">🔁</div>
+          <div class="scan-info-text">
+            <div class="scan-info-label">Total Scan Emas Ini</div>
+            <div class="scan-info-val">10 kali scan</div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /col-left -->
+
+    <!-- ===== RIGHT COLUMN ===== -->
+    <div class="col-right">
+
+      <!-- CTA — desktop: atas, mobile: bawah (via order) -->
+      <div class="cta-card cta-card--right">
+        <div class="cta-body">
+          <div class="cta-title">Curiga dengan keaslian emas ini?</div>
+          <div class="cta-desc">Jika ada scan yang tidak Anda kenali, tim kami siap membantu verifikasi lebih lanjut.</div>
+          <a href="tel:+6214001234" class="cta-btn">
+            <span>📞</span> Hubungi Call Center
+          </a>
+        </div>
+      </div>
+
+      <!-- Detail Scan -->
+      <div class="scan-info-card scan-detail-card" style="border-color:rgba(201,168,76,0.22);">
+
+        <!-- Header -->
+        <div style="margin-bottom:16px;">
+          <div style="font-family:var(--font-display);font-size:18px;font-weight:600;color:var(--text-primary);letter-spacing:0.01em;">Detail Scan</div>
+        </div>
+
+        <!-- Total scan — inside frame, larger value -->
+        <div style="display:flex;align-items:center;gap:12px;padding:12px 14px;background:rgba(255,255,255,0.03);border:1px solid var(--border-subtle);border-radius:10px;margin-bottom:16px;">
+          <div style="font-size:20px;flex-shrink:0;">🔁</div>
+          <div>
+            <div style="font-size:10px;letter-spacing:0.15em;text-transform:uppercase;color:var(--text-dim);margin-bottom:3px;">Total Scan Emas Ini</div>
+            <div style="font-size:24px;font-weight:600;color:var(--text-primary);line-height:1;">10 <span style="font-size:13px;font-weight:400;color:var(--text-dim);">kali scan</span></div>
+          </div>
+        </div>
+
+        <!-- Subtitle above history -->
+        <div style="font-size:10px;letter-spacing:0.18em;text-transform:uppercase;color:var(--text-dim);margin-bottom:12px;">5 scan terakhir · termasuk scan ini</div>
+
+        <!-- Entry: Scan ini -->
+        <div class="scan-history-entry current">
+          <div class="scan-history-dot current-dot"></div>
+          <div class="scan-history-body">
+            <div class="scan-history-top">
+              <div>
+                <span class="scan-history-badge current-badge">Scan ini</span>
+                <div class="scan-history-date" id="scan-time-history">—</div>
+              </div>
+              <div class="scan-history-loc-wrap">
+                <div class="scan-history-city">Bandung,</div>
+                <div class="scan-history-province">Jawa Barat</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Entry 4 -->
+        <div class="scan-history-entry">
+          <div class="scan-history-dot"></div>
+          <div class="scan-history-body">
+            <div class="scan-history-top">
+              <div>
+                <span class="scan-history-badge prev-badge">Scan ke-9</span>
+                <div class="scan-history-date">21 Apr 2025, 09:14 WIB</div>
+              </div>
+              <div class="scan-history-loc-wrap">
+                <div class="scan-history-city">Bandung,</div>
+                <div class="scan-history-province">Jawa Barat</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Entry 3 -->
+        <div class="scan-history-entry">
+          <div class="scan-history-dot"></div>
+          <div class="scan-history-body">
+            <div class="scan-history-top">
+              <div>
+                <span class="scan-history-badge prev-badge">Scan ke-8</span>
+                <div class="scan-history-date">18 Apr 2025, 16:45 WIB</div>
+              </div>
+              <div class="scan-history-loc-wrap">
+                <div class="scan-history-city">Jakarta Selatan,</div>
+                <div class="scan-history-province">DKI Jakarta</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Entry 2 -->
+        <div class="scan-history-entry">
+          <div class="scan-history-dot"></div>
+          <div class="scan-history-body">
+            <div class="scan-history-top">
+              <div>
+                <span class="scan-history-badge prev-badge">Scan ke-7</span>
+                <div class="scan-history-date">15 Apr 2025, 11:22 WIB</div>
+              </div>
+              <div class="scan-history-loc-wrap">
+                <div class="scan-history-city">Bandung,</div>
+                <div class="scan-history-province">Jawa Barat</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Entry 1 -->
+        <div class="scan-history-entry" style="border-bottom:none;">
+          <div class="scan-history-dot"></div>
+          <div class="scan-history-body">
+            <div class="scan-history-top">
+              <div>
+                <span class="scan-history-badge prev-badge">Scan ke-6</span>
+                <div class="scan-history-date">10 Apr 2025, 14:08 WIB</div>
+              </div>
+              <div class="scan-history-loc-wrap">
+                <div class="scan-history-city">Bandung,</div>
+                <div class="scan-history-province">Jawa Barat</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- /scan detail card -->
+
+    </div><!-- /col-right -->
+  </div>
+
+  <!-- Footer — centered full width, outside the 2-col grid -->
+  <div class="customer-footer-wrap">
+    <div class="gold-divider"></div>
+    <div class="customer-footer">
+      <p>Produk ini terdaftar resmi dan diterbitkan oleh<br><strong style="color:var(--gold-light);font-family:var(--font-display);letter-spacing:0.08em;">PT Pundimas Logam Mulia</strong></p>
+      <p style="margin-top:8px;font-size:10px;">Call Center: <span style="color:var(--gold)">+62 21 400 1234</span> &nbsp;|&nbsp; Email: <span style="color:var(--gold)">verify@pundimas.co.id</span></p>
+    </div>
+  </div>
+
+</div>
+
+<div id="page-login" class="page">
+  <div class="login-wrap">
+    <div class="login-header">
+      <div style="text-align:center;margin-bottom:8px;">
+        <svg width="36" height="36" viewBox="0 0 42 42" fill="none" style="margin:0 auto;display:block;">
+          <polygon points="21,4 38,32 4,32" fill="none" stroke="#C9A84C" stroke-width="1.2"/>
+          <polygon points="21,10 33,30 9,30" fill="rgba(201,168,76,0.08)" stroke="#C9A84C" stroke-width="0.6"/>
+          <circle cx="21" cy="21" r="3" fill="#C9A84C"/>
+        </svg>
+      </div>
+      <div class="login-title">Pundimas</div>
+      <div class="login-subtitle">Admin Dashboard</div>
+    </div>
+
+    <div class="login-card">
+      <div class="form-group">
+        <label class="form-label">Email</label>
+        <input type="email" class="form-input" id="login-email" placeholder="admin@pundimas.co.id" value="admin@pundimas.co.id">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Password</label>
+        <input type="password" class="form-input" id="login-pass" placeholder="••••••••" value="admin123">
+      </div>
+      <button class="btn-primary" onclick="doLogin()">Masuk ke Dashboard</button>
+      <div class="login-error" id="login-error">Email atau password tidak valid.</div>
+      <p style="font-size:11px;color:var(--text-dim);text-align:center;margin-top:16px;">Demo: gunakan kredensial yang sudah terisi</p>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== PAGE: DASHBOARD ==================== -->
+<div id="page-dashboard" class="page">
+
+  <!-- Sidebar overlay (mobile) -->
+  <div class="sidebar-overlay" id="sidebar-overlay" onclick="closeSidebar()"></div>
+
+  <!-- Sidebar -->
+  <div class="sidebar">
+    <div class="sidebar-brand">
+      <div class="sidebar-brand-name">Pundimas</div>
+      <div class="sidebar-brand-sub">Admin Panel</div>
+    </div>
+
+    <div class="sidebar-nav">
+      <div class="nav-section-label">Overview</div>
+      <button class="nav-item active" onclick="switchView('overview', this)">
+        <span class="nav-icon">◈</span> Overview
+      </button>
+
+      <div class="nav-section-label">Monitoring</div>
+      <button class="nav-item" onclick="switchView('scan-history', this)">
+        <span class="nav-icon">≡</span> History Scan
+      </button>
+      <button class="nav-item" onclick="switchView('anomaly', this)">
+        <span class="nav-icon">⚠</span> Anomali
+      </button>
+
+      <div class="nav-section-label">Data</div>
+      <button class="nav-item" onclick="switchView('gold-list', this)">
+        <span class="nav-icon">◇</span> Data Emas
+      </button>
+    </div>
+
+    <div class="sidebar-footer">
+      <div class="admin-info">
+        <div class="admin-avatar">A</div>
+        <div>
+          <div class="admin-name">Administrator</div>
+          <div class="admin-role">Super Admin</div>
+        </div>
+      </div>
+      <button class="btn-logout" onclick="showPage('login')">Keluar</button>
+    </div>
+  </div>
+
+  <!-- Mobile Header (hidden on desktop) -->
+  <div class="mobile-header">
+    <div class="mobile-header-brand">Pundimas</div>
+    <button class="mobile-hamburger" onclick="toggleSidebar()">
+      <span></span><span></span><span></span>
+    </button>
+  </div>
+
+  <!-- Main Content -->
+  <div class="main-content">
+
+    <!-- ---- VIEW: OVERVIEW ---- -->
+    <div id="view-overview" class="dashboard-view active">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Overview</div>
+          <div class="page-subtitle">Ringkasan aktivitas sistem hari ini</div>
+        </div>
+        <div class="header-date" id="dash-date">—</div>
+      </div>
+
+      <!-- Stats -->
+      <div class="stats-row">
+        <div class="stat-card">
+          <div class="stat-label">Total Scan Hari Ini</div>
+          <div class="stat-value gold">247</div>
+          <div class="stat-change up">↑ 12% vs kemarin</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Total Emas Terdaftar</div>
+          <div class="stat-value">18.432</div>
+          <div class="stat-change">keping aktif</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Scan Unik (QR Baru)</div>
+          <div class="stat-value">183</div>
+          <div class="stat-change up">↑ scan pertama kali</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Anomali Terdeteksi</div>
+          <div class="stat-value warning">3</div>
+          <div class="stat-change">perlu ditinjau</div>
+        </div>
+      </div>
+
+      <div class="two-col">
+        <!-- Recent Scans -->
+        <div class="panel">
+          <div class="panel-header">
+            <div class="panel-title">Scan Terbaru</div>
+            <div class="panel-meta">Real-time</div>
+          </div>
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Serial</th>
+                <th>Waktu</th>
+                <th>Lokasi</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><span class="serial-code">PMD-AU-008821</span></td>
+                <td>14:32</td>
+                <td>Bandung</td>
+                <td><span class="badge valid"><span class="badge-dot"></span>Valid</span></td>
+              </tr>
+              <tr>
+                <td><span class="serial-code">PMD-AU-005512</span></td>
+                <td>14:28</td>
+                <td>Jakarta</td>
+                <td><span class="badge warning"><span class="badge-dot"></span>Anomali</span></td>
+              </tr>
+              <tr>
+                <td><span class="serial-code">PMD-AU-012003</span></td>
+                <td>14:21</td>
+                <td>Surabaya</td>
+                <td><span class="badge valid"><span class="badge-dot"></span>Valid</span></td>
+              </tr>
+              <tr>
+                <td><span class="serial-code">PMD-AU-001198</span></td>
+                <td>14:17</td>
+                <td>Medan</td>
+                <td><span class="badge valid"><span class="badge-dot"></span>Valid</span></td>
+              </tr>
+              <tr>
+                <td><span class="serial-code">PMD-AU-009934</span></td>
+                <td>14:05</td>
+                <td>Yogyakarta</td>
+                <td><span class="badge valid"><span class="badge-dot"></span>Valid</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Map -->
+        <div class="panel">
+          <div class="panel-header">
+            <div class="panel-title">Sebaran Lokasi Scan</div>
+            <div class="panel-meta">Dari IP Address</div>
+          </div>
+          <div class="map-placeholder">
+            <div class="map-grid"></div>
+            <div class="map-dots">
+              <div class="map-dot" style="top:38%;left:35%;animation-delay:0s"></div>
+              <div class="map-dot" style="top:28%;left:52%;animation-delay:0.4s"></div>
+              <div class="map-dot" style="top:55%;left:65%;animation-delay:0.8s"></div>
+              <div class="map-dot" style="top:22%;left:28%;animation-delay:1.2s"></div>
+              <div class="map-dot" style="top:48%;left:44%;animation-delay:0.2s;background:var(--warning)"></div>
+            </div>
+            <div class="map-label">Peta Interaktif<br><span style="font-size:10px;opacity:0.5">Integrasi Maps API diperlukan</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ---- VIEW: SCAN HISTORY ---- -->
+    <div id="view-scan-history" class="dashboard-view">
+      <div class="page-header">
+        <div>
+          <div class="page-title">History Scan</div>
+          <div class="page-subtitle">Seluruh aktivitas scan QR code</div>
+        </div>
+        <div class="search-bar">
+          <span class="search-icon">⌕</span>
+          <input type="text" placeholder="Cari serial, lokasi...">
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">Semua Aktivitas Scan</div>
+          <div class="panel-meta">247 scan hari ini</div>
+        </div>
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>No</th>
+              <th>Serial Emas</th>
+              <th>Tanggal & Waktu</th>
+              <th>IP Address</th>
+              <th>Estimasi Lokasi</th>
+              <th>Scan ke-</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td style="color:var(--text-dim)">001</td>
+              <td><span class="serial-link" onclick="openGoldDetail('PMD-AU-008821')">PMD-AU-008821</span></td>
+              <td>24 Apr 2025, 14:32</td>
+              <td style="font-size:11px;color:var(--text-dim)">114.122.xx.xx</td>
+              <td>Bandung, ID</td>
+              <td style="text-align:center">10</td>
+              <td><span class="badge valid"><span class="badge-dot"></span>Valid</span></td>
+            </tr>
+            <tr>
+              <td style="color:var(--text-dim)">002</td>
+              <td><span class="serial-link" onclick="openGoldDetail('PMD-AU-005512')">PMD-AU-005512</span></td>
+              <td>24 Apr 2025, 14:28</td>
+              <td style="font-size:11px;color:var(--text-dim)">36.81.xx.xx</td>
+              <td>Jakarta, ID</td>
+              <td style="text-align:center;color:var(--warning)">28</td>
+              <td><span class="badge warning"><span class="badge-dot"></span>Anomali</span></td>
+            </tr>
+            <tr>
+              <td style="color:var(--text-dim)">003</td>
+              <td><span class="serial-link" onclick="openGoldDetail('PMD-AU-012003')">PMD-AU-012003</span></td>
+              <td>24 Apr 2025, 14:21</td>
+              <td style="font-size:11px;color:var(--text-dim)">180.252.xx.xx</td>
+              <td>Surabaya, ID</td>
+              <td style="text-align:center">1</td>
+              <td><span class="badge valid"><span class="badge-dot"></span>Valid</span></td>
+            </tr>
+            <tr>
+              <td style="color:var(--text-dim)">004</td>
+              <td><span class="serial-link" onclick="openGoldDetail('PMD-AU-001198')">PMD-AU-001198</span></td>
+              <td>24 Apr 2025, 14:17</td>
+              <td style="font-size:11px;color:var(--text-dim)">203.130.xx.xx</td>
+              <td>Medan, ID</td>
+              <td style="text-align:center">5</td>
+              <td><span class="badge valid"><span class="badge-dot"></span>Valid</span></td>
+            </tr>
+            <tr>
+              <td style="color:var(--text-dim)">005</td>
+              <td><span class="serial-link" onclick="openGoldDetail('PMD-AU-009934')">PMD-AU-009934</span></td>
+              <td>24 Apr 2025, 14:05</td>
+              <td style="font-size:11px;color:var(--text-dim)">125.166.xx.xx</td>
+              <td>Yogyakarta, ID</td>
+              <td style="text-align:center">2</td>
+              <td><span class="badge valid"><span class="badge-dot"></span>Valid</span></td>
+            </tr>
+            <tr>
+              <td style="color:var(--text-dim)">006</td>
+              <td><span class="serial-link" onclick="openGoldDetail('PMD-AU-003341')">PMD-AU-003341</span></td>
+              <td>24 Apr 2025, 13:58</td>
+              <td style="font-size:11px;color:var(--text-dim)">118.98.xx.xx</td>
+              <td>Makassar, ID</td>
+              <td style="text-align:center">1</td>
+              <td><span class="badge valid"><span class="badge-dot"></span>Valid</span></td>
+            </tr>
+            <tr>
+              <td style="color:var(--text-dim)">007</td>
+              <td><span class="serial-link" onclick="openGoldDetail('PMD-AU-007720')">PMD-AU-007720</span></td>
+              <td>24 Apr 2025, 13:44</td>
+              <td style="font-size:11px;color:var(--text-dim)">110.137.xx.xx</td>
+              <td>Semarang, ID</td>
+              <td style="text-align:center;color:var(--invalid)">47</td>
+              <td><span class="badge invalid"><span class="badge-dot"></span>Kritis</span></td>
+            </tr>
+          </tbody>
+        </table>
+
+        <!-- Mobile cards for scan history -->
+        <div class="mobile-cards">
+          <div class="mobile-card">
+            <div class="mobile-card-row1">
+              <span class="mobile-card-no">No. 001</span>
+              <span class="mobile-card-scan-no">Scan ke- 10</span>
+            </div>
+            <div class="mobile-card-row2">
+              <span class="mobile-card-serial" onclick="openGoldDetail('PMD-AU-008821')">PMD-AU-008821</span>
+              <span class="badge valid"><span class="badge-dot"></span>Valid</span>
+            </div>
+            <div class="mobile-card-row3">
+              <span class="mobile-card-ip">114.122.xx.xx</span>
+              <span class="mobile-card-loc">Bandung, ID · 14:32</span>
+            </div>
+          </div>
+          <div class="mobile-card">
+            <div class="mobile-card-row1">
+              <span class="mobile-card-no">No. 002</span>
+              <span class="mobile-card-scan-no">Scan ke- 28</span>
+            </div>
+            <div class="mobile-card-row2">
+              <span class="mobile-card-serial" onclick="openGoldDetail('PMD-AU-005512')">PMD-AU-005512</span>
+              <span class="badge warning"><span class="badge-dot"></span>Anomali</span>
+            </div>
+            <div class="mobile-card-row3">
+              <span class="mobile-card-ip">36.81.xx.xx</span>
+              <span class="mobile-card-loc">Jakarta, ID · 14:28</span>
+            </div>
+          </div>
+          <div class="mobile-card">
+            <div class="mobile-card-row1">
+              <span class="mobile-card-no">No. 003</span>
+              <span class="mobile-card-scan-no">Scan ke- 1</span>
+            </div>
+            <div class="mobile-card-row2">
+              <span class="mobile-card-serial" onclick="openGoldDetail('PMD-AU-012003')">PMD-AU-012003</span>
+              <span class="badge valid"><span class="badge-dot"></span>Valid</span>
+            </div>
+            <div class="mobile-card-row3">
+              <span class="mobile-card-ip">180.252.xx.xx</span>
+              <span class="mobile-card-loc">Surabaya, ID · 14:21</span>
+            </div>
+          </div>
+          <div class="mobile-card">
+            <div class="mobile-card-row1">
+              <span class="mobile-card-no">No. 004</span>
+              <span class="mobile-card-scan-no">Scan ke- 5</span>
+            </div>
+            <div class="mobile-card-row2">
+              <span class="mobile-card-serial" onclick="openGoldDetail('PMD-AU-001198')">PMD-AU-001198</span>
+              <span class="badge valid"><span class="badge-dot"></span>Valid</span>
+            </div>
+            <div class="mobile-card-row3">
+              <span class="mobile-card-ip">203.130.xx.xx</span>
+              <span class="mobile-card-loc">Medan, ID · 14:17</span>
+            </div>
+          </div>
+          <div class="mobile-card">
+            <div class="mobile-card-row1">
+              <span class="mobile-card-no">No. 005</span>
+              <span class="mobile-card-scan-no">Scan ke- 2</span>
+            </div>
+            <div class="mobile-card-row2">
+              <span class="mobile-card-serial" onclick="openGoldDetail('PMD-AU-009934')">PMD-AU-009934</span>
+              <span class="badge valid"><span class="badge-dot"></span>Valid</span>
+            </div>
+            <div class="mobile-card-row3">
+              <span class="mobile-card-ip">125.166.xx.xx</span>
+              <span class="mobile-card-loc">Yogyakarta, ID · 14:05</span>
+            </div>
+          </div>
+          <div class="mobile-card">
+            <div class="mobile-card-row1">
+              <span class="mobile-card-no">No. 006</span>
+              <span class="mobile-card-scan-no">Scan ke- 1</span>
+            </div>
+            <div class="mobile-card-row2">
+              <span class="mobile-card-serial" onclick="openGoldDetail('PMD-AU-003341')">PMD-AU-003341</span>
+              <span class="badge valid"><span class="badge-dot"></span>Valid</span>
+            </div>
+            <div class="mobile-card-row3">
+              <span class="mobile-card-ip">118.98.xx.xx</span>
+              <span class="mobile-card-loc">Makassar, ID · 13:58</span>
+            </div>
+          </div>
+          <div class="mobile-card">
+            <div class="mobile-card-row1">
+              <span class="mobile-card-no">No. 007</span>
+              <span class="mobile-card-scan-no">Scan ke- 47</span>
+            </div>
+            <div class="mobile-card-row2">
+              <span class="mobile-card-serial" onclick="openGoldDetail('PMD-AU-007720')">PMD-AU-007720</span>
+              <span class="badge invalid"><span class="badge-dot"></span>Kritis</span>
+            </div>
+            <div class="mobile-card-row3">
+              <span class="mobile-card-ip">110.137.xx.xx</span>
+              <span class="mobile-card-loc">Semarang, ID · 13:44</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div id="view-anomaly" class="dashboard-view">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Deteksi Anomali</div>
+          <div class="page-subtitle">QR yang menunjukkan pola scan tidak wajar</div>
+        </div>
+      </div>
+
+      <div style="background:rgba(224,154,66,0.06);border:1px solid rgba(224,154,66,0.2);border-radius:12px;padding:14px 18px;margin-bottom:20px;font-size:12px;color:rgba(224,154,66,0.85);line-height:1.6;">
+        ⚠️ <strong>Catatan:</strong> Anomali tidak secara otomatis membuktikan pemalsuan. Bisa jadi emas dijual kembali berkali-kali atau dipamerkan di toko. Harap investigasi manual sebelum mengambil tindakan.
+      </div>
+
+      <div class="two-col">
+        <div class="panel">
+          <div class="panel-header">
+            <div class="panel-title">Anomali Aktif</div>
+            <div class="panel-meta">3 kasus</div>
+          </div>
+          <div class="alert-item">
+            <div class="alert-icon-wrap danger">⚡</div>
+            <div class="alert-content">
+              <div class="alert-title">PMD-AU-007720 — Scan Ekstrem</div>
+              <div class="alert-desc">Di-scan 47 kali dalam 2 jam terakhir dari 12 kota berbeda. Sangat tidak wajar.</div>
+            </div>
+            <div class="alert-time">13:44</div>
+          </div>
+          <div class="alert-item">
+            <div class="alert-icon-wrap warning">⚠</div>
+            <div class="alert-content">
+              <div class="alert-title">PMD-AU-005512 — Frekuensi Tinggi</div>
+              <div class="alert-desc">Di-scan 28 kali hari ini. Melebihi threshold 20 scan/hari.</div>
+            </div>
+            <div class="alert-time">14:28</div>
+          </div>
+          <div class="alert-item">
+            <div class="alert-icon-wrap warning">📍</div>
+            <div class="alert-content">
+              <div class="alert-title">PMD-AU-011203 — Lokasi Janggal</div>
+              <div class="alert-desc">Di-scan di Jakarta dan Surabaya dalam selisih waktu 8 menit.</div>
+            </div>
+            <div class="alert-time">11:20</div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header">
+            <div class="panel-title">Aturan Deteksi Anomali</div>
+            <div class="panel-meta">Konfigurasi</div>
+          </div>
+          <div style="padding:22px;">
+            <div class="detail-item" style="margin-bottom:12px;">
+              <div class="detail-label">Threshold Scan Per Hari</div>
+              <div class="detail-value" style="font-size:16px;color:var(--warning)">20 scan/hari</div>
+            </div>
+            <div class="detail-item" style="margin-bottom:12px;">
+              <div class="detail-label">Threshold Kota Berbeda</div>
+              <div class="detail-value" style="font-size:16px;color:var(--warning)">5 kota/hari</div>
+            </div>
+            <div class="detail-item">
+              <div class="detail-label">Deteksi Lokasi Mustahil</div>
+              <div class="detail-value" style="font-size:16px;color:var(--valid)">Aktif ✓</div>
+            </div>
+            <p style="font-size:11px;color:var(--text-dim);margin-top:16px;line-height:1.6;">Konfigurasi threshold dapat disesuaikan sesuai kebijakan Pundimas.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ---- VIEW: GOLD LIST ---- -->
+    <div id="view-gold-list" class="dashboard-view">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Data Emas</div>
+          <div class="page-subtitle">Seluruh keping emas yang terdaftar</div>
+        </div>
+        <div class="search-bar">
+          <span class="search-icon">⌕</span>
+          <input type="text" placeholder="Cari serial...">
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">Katalog Emas Terdaftar</div>
+          <div class="panel-meta">18.432 keping total</div>
+        </div>
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Serial</th>
+              <th>Berat</th>
+              <th>Kadar</th>
+              <th>Batch</th>
+              <th>Tgl Produksi</th>
+              <th>Total Scan</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><span class="serial-link" onclick="openGoldDetail('PMD-AU-008821')">PMD-AU-008821</span></td>
+              <td>10 gram</td>
+              <td>999.9 ‰</td>
+              <td style="font-size:11px;color:var(--text-dim)">B-2024-03-07</td>
+              <td>14 Mar 2024</td>
+              <td>10</td>
+              <td><span class="badge valid"><span class="badge-dot"></span>Normal</span></td>
+            </tr>
+            <tr>
+              <td><span class="serial-link" onclick="openGoldDetail('PMD-AU-005512')">PMD-AU-005512</span></td>
+              <td>5 gram</td>
+              <td>999.9 ‰</td>
+              <td style="font-size:11px;color:var(--text-dim)">B-2024-02-12</td>
+              <td>12 Feb 2024</td>
+              <td style="color:var(--warning)">28</td>
+              <td><span class="badge warning"><span class="badge-dot"></span>Anomali</span></td>
+            </tr>
+            <tr>
+              <td><span class="serial-link" onclick="openGoldDetail('PMD-AU-012003')">PMD-AU-012003</span></td>
+              <td>1 gram</td>
+              <td>999.9 ‰</td>
+              <td style="font-size:11px;color:var(--text-dim)">B-2024-04-01</td>
+              <td>1 Apr 2024</td>
+              <td>1</td>
+              <td><span class="badge valid"><span class="badge-dot"></span>Normal</span></td>
+            </tr>
+            <tr>
+              <td><span class="serial-link" onclick="openGoldDetail('PMD-AU-001198')">PMD-AU-001198</span></td>
+              <td>25 gram</td>
+              <td>999.9 ‰</td>
+              <td style="font-size:11px;color:var(--text-dim)">B-2023-11-20</td>
+              <td>20 Nov 2023</td>
+              <td>5</td>
+              <td><span class="badge valid"><span class="badge-dot"></span>Normal</span></td>
+            </tr>
+            <tr>
+              <td><span class="serial-link" onclick="openGoldDetail('PMD-AU-007720')">PMD-AU-007720</span></td>
+              <td>50 gram</td>
+              <td>999.9 ‰</td>
+              <td style="font-size:11px;color:var(--text-dim)">B-2024-01-08</td>
+              <td>8 Jan 2024</td>
+              <td style="color:var(--invalid)">47</td>
+              <td><span class="badge invalid"><span class="badge-dot"></span>Kritis</span></td>
+            </tr>
+            <tr>
+              <td><span class="serial-link" onclick="openGoldDetail('PMD-AU-009934')">PMD-AU-009934</span></td>
+              <td>2 gram</td>
+              <td>999.9 ‰</td>
+              <td style="font-size:11px;color:var(--text-dim)">B-2024-03-22</td>
+              <td>22 Mar 2024</td>
+              <td>2</td>
+              <td><span class="badge valid"><span class="badge-dot"></span>Normal</span></td>
+            </tr>
+          </tbody>
+        </table>
+
+        <!-- Mobile cards for gold list -->
+        <div class="mobile-cards">
+          <div class="mobile-card">
+            <div class="mobile-card-row1">
+              <span class="mobile-card-serial" onclick="openGoldDetail('PMD-AU-008821')">PMD-AU-008821</span>
+              <span class="badge valid"><span class="badge-dot"></span>Normal</span>
+            </div>
+            <div class="mobile-card-row2">
+              <span class="mobile-card-ip">10 gram · 999.9 ‰ · 24K</span>
+              <span class="mobile-card-date">14 Mar 2024</span>
+            </div>
+            <div class="mobile-card-row3">
+              <span class="mobile-card-ip">B-2024-03-07</span>
+              <span class="mobile-card-loc">10 scan</span>
+            </div>
+          </div>
+          <div class="mobile-card">
+            <div class="mobile-card-row1">
+              <span class="mobile-card-serial" onclick="openGoldDetail('PMD-AU-005512')">PMD-AU-005512</span>
+              <span class="badge warning"><span class="badge-dot"></span>Anomali</span>
+            </div>
+            <div class="mobile-card-row2">
+              <span class="mobile-card-ip">5 gram · 999.9 ‰ · 24K</span>
+              <span class="mobile-card-date">12 Feb 2024</span>
+            </div>
+            <div class="mobile-card-row3">
+              <span class="mobile-card-ip">B-2024-02-12</span>
+              <span class="mobile-card-loc" style="color:var(--warning)">28 scan</span>
+            </div>
+          </div>
+          <div class="mobile-card">
+            <div class="mobile-card-row1">
+              <span class="mobile-card-serial" onclick="openGoldDetail('PMD-AU-012003')">PMD-AU-012003</span>
+              <span class="badge valid"><span class="badge-dot"></span>Normal</span>
+            </div>
+            <div class="mobile-card-row2">
+              <span class="mobile-card-ip">1 gram · 999.9 ‰ · 24K</span>
+              <span class="mobile-card-date">1 Apr 2024</span>
+            </div>
+            <div class="mobile-card-row3">
+              <span class="mobile-card-ip">B-2024-04-01</span>
+              <span class="mobile-card-loc">1 scan</span>
+            </div>
+          </div>
+          <div class="mobile-card">
+            <div class="mobile-card-row1">
+              <span class="mobile-card-serial" onclick="openGoldDetail('PMD-AU-001198')">PMD-AU-001198</span>
+              <span class="badge valid"><span class="badge-dot"></span>Normal</span>
+            </div>
+            <div class="mobile-card-row2">
+              <span class="mobile-card-ip">25 gram · 999.9 ‰ · 24K</span>
+              <span class="mobile-card-date">20 Nov 2023</span>
+            </div>
+            <div class="mobile-card-row3">
+              <span class="mobile-card-ip">B-2023-11-20</span>
+              <span class="mobile-card-loc">5 scan</span>
+            </div>
+          </div>
+          <div class="mobile-card">
+            <div class="mobile-card-row1">
+              <span class="mobile-card-serial" onclick="openGoldDetail('PMD-AU-007720')">PMD-AU-007720</span>
+              <span class="badge invalid"><span class="badge-dot"></span>Kritis</span>
+            </div>
+            <div class="mobile-card-row2">
+              <span class="mobile-card-ip">50 gram · 999.9 ‰ · 24K</span>
+              <span class="mobile-card-date">8 Jan 2024</span>
+            </div>
+            <div class="mobile-card-row3">
+              <span class="mobile-card-ip">B-2024-01-08</span>
+              <span class="mobile-card-loc" style="color:var(--invalid)">47 scan</span>
+            </div>
+          </div>
+          <div class="mobile-card">
+            <div class="mobile-card-row1">
+              <span class="mobile-card-serial" onclick="openGoldDetail('PMD-AU-009934')">PMD-AU-009934</span>
+              <span class="badge valid"><span class="badge-dot"></span>Normal</span>
+            </div>
+            <div class="mobile-card-row2">
+              <span class="mobile-card-ip">2 gram · 999.9 ‰ · 24K</span>
+              <span class="mobile-card-date">22 Mar 2024</span>
+            </div>
+            <div class="mobile-card-row3">
+              <span class="mobile-card-ip">B-2024-03-22</span>
+              <span class="mobile-card-loc">2 scan</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div id="view-gold-detail" class="dashboard-view">
+      <button class="back-btn" id="detail-back-btn">← Kembali</button>
+
+      <div class="gold-detail-header">
+        <div>
+          <div class="gold-detail-serial" id="detail-serial">—</div>
+          <div class="page-title" id="detail-title">Detail Emas</div>
+          <div class="page-subtitle" id="detail-subtitle">—</div>
+        </div>
+        <div id="detail-status-badge"></div>
+      </div>
+
+      <!-- Info Grid -->
+      <div class="panel" style="margin-bottom:20px;">
+        <div class="panel-header">
+          <div class="panel-title">Informasi Emas</div>
+        </div>
+        <div class="gold-detail-grid">
+          <div class="detail-item">
+            <div class="detail-label">Nomor Seri</div>
+            <div class="detail-value mono" id="d-serial" style="font-size:14px;letter-spacing:0.08em;color:var(--gold-light)">—</div>
+          </div>
+          <div class="detail-item">
+            <div class="detail-label">Status</div>
+            <div class="detail-value" id="d-status">—</div>
+          </div>
+          <div class="detail-item">
+            <div class="detail-label">Berat</div>
+            <div class="detail-value" id="d-berat">—</div>
+          </div>
+          <div class="detail-item">
+            <div class="detail-label">Kadar Kemurnian</div>
+            <div class="detail-value" id="d-kadar">—</div>
+          </div>
+          <div class="detail-item">
+            <div class="detail-label">Tanggal Produksi</div>
+            <div class="detail-value" id="d-produksi" style="font-size:16px;">—</div>
+          </div>
+          <div class="detail-item">
+            <div class="detail-label">Batch</div>
+            <div class="detail-value mono" id="d-batch" style="font-size:14px;letter-spacing:0.06em;color:var(--text-secondary)">—</div>
+          </div>
+          <div class="detail-item">
+            <div class="detail-label">Total Scan</div>
+            <div class="detail-value" id="d-total-scan">—</div>
+          </div>
+          <div class="detail-item">
+            <div class="detail-label">Scan Terakhir</div>
+            <div class="detail-value" id="d-last-scan" style="font-size:14px;">—</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Scan History Table with Pagination -->
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">Riwayat Scan</div>
+          <div style="display:flex;align-items:center;gap:10px;">
+            <span style="font-size:11px;color:var(--text-dim);">Tampilkan</span>
+            <select class="rows-select" id="rows-per-page" onchange="renderDetailTable()">
+              <option value="10">10</option>
+              <option value="20" selected>20</option>
+              <option value="50">50</option>
+            </select>
+            <span style="font-size:11px;color:var(--text-dim);">baris</span>
+          </div>
+        </div>
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>No</th>
+              <th>Tanggal & Waktu</th>
+              <th>IP Address</th>
+              <th>Estimasi Lokasi</th>
+              <th>Scan ke-</th>
+            </tr>
+          </thead>
+          <tbody id="detail-table-body"></tbody>
+        </table>
+        <div class="pagination-wrap">
+          <div class="pagination-info" id="pagination-info">—</div>
+          <div class="pagination-controls" id="pagination-controls"></div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /main-content -->
+</div><!-- /page-dashboard -->
+
+<script>
+  // ---- Preloader — only runs when customer page is first shown ----
+  function runPreloader(onComplete) {
+    const preloader = document.getElementById('preloader');
+    const progress = document.getElementById('scan-progress');
+    const statusText = document.getElementById('scan-status-text');
+
+    const steps = [
+      { pct: 20, text: 'Membaca', highlight: 'QR Code', delay: 0 },
+      { pct: 50, text: 'Memverifikasi', highlight: 'Nomor Seri', delay: 900 },
+      { pct: 78, text: 'Mengecek', highlight: 'Database', delay: 1700 },
+      { pct: 100, text: 'Validasi', highlight: 'Selesai', delay: 2500 },
+    ];
+
+    steps.forEach(step => {
+      setTimeout(() => {
+        progress.style.width = step.pct + '%';
+        statusText.innerHTML = step.text + ' <span>' + step.highlight + '</span>...';
+      }, step.delay);
+    });
+
+    setTimeout(() => {
+      preloader.classList.add('hidden');
+      if (onComplete) onComplete();
+    }, 3300);
+  }
+
+  let preloaderDone = false;
+
+  // ---- Gold mock data ----
+  const goldData = {
+    'PMD-AU-008821': { berat: '10 gram', kadar: '999.9 ‰', produksi: '14 Mar 2024', batch: 'B-2024-03-07', status: 'normal', totalScan: 10, lastScan: '24 Apr 2025, 14:32' },
+    'PMD-AU-005512': { berat: '5 gram',  kadar: '999.9 ‰', produksi: '12 Feb 2024', batch: 'B-2024-02-12', status: 'anomali', totalScan: 28, lastScan: '24 Apr 2025, 14:28' },
+    'PMD-AU-012003': { berat: '1 gram',  kadar: '999.9 ‰', produksi: '1 Apr 2024',  batch: 'B-2024-04-01', status: 'normal', totalScan: 1,  lastScan: '24 Apr 2025, 14:21' },
+    'PMD-AU-001198': { berat: '25 gram', kadar: '999.9 ‰', produksi: '20 Nov 2023', batch: 'B-2023-11-20', status: 'normal', totalScan: 5,  lastScan: '24 Apr 2025, 14:17' },
+    'PMD-AU-007720': { berat: '50 gram', kadar: '999.9 ‰', produksi: '8 Jan 2024',  batch: 'B-2024-01-08', status: 'kritis', totalScan: 47, lastScan: '24 Apr 2025, 13:44' },
+    'PMD-AU-009934': { berat: '2 gram',  kadar: '999.9 ‰', produksi: '22 Mar 2024', batch: 'B-2024-03-22', status: 'normal', totalScan: 2,  lastScan: '24 Apr 2025, 14:05' },
+    'PMD-AU-003341': { berat: '5 gram',  kadar: '999.9 ‰', produksi: '10 Jan 2024', batch: 'B-2024-01-03', status: 'normal', totalScan: 1,  lastScan: '24 Apr 2025, 13:58' },
+  };
+
+  // Generate mock scan history rows for a given serial
+  function generateScanRows(serial) {
+    const gold = goldData[serial];
+    const total = gold.totalScan;
+    const locs = ['Bandung, Jawa Barat, ID', 'Jakarta Selatan, DKI Jakarta, ID', 'Surabaya, Jawa Timur, ID', 'Depok, Jawa Barat, ID', 'Jakarta Pusat, DKI Jakarta, ID', 'Yogyakarta, DIY, ID', 'Bekasi, Jawa Barat, ID'];
+    const ips  = ['114.122.xx.xx','36.81.xx.xx','180.252.xx.xx','203.130.xx.xx','125.166.xx.xx','110.137.xx.xx','118.98.xx.xx'];
+    const rows = [];
+    const now = new Date();
+    for (let i = total; i >= 1; i--) {
+      const d = new Date(now - (total - i + 1) * 86400000 * Math.ceil(Math.random() * 5 + 1));
+      const dateStr = d.toLocaleDateString('id-ID', { day:'2-digit', month:'short', year:'numeric' });
+      const timeStr = d.toLocaleTimeString('id-ID', { hour:'2-digit', minute:'2-digit' });
+      rows.push({
+        no: i,
+        waktu: dateStr + ', ' + timeStr + ' WIB',
+        ip: ips[i % ips.length],
+        lokasi: locs[i % locs.length],
+        ke: i
+      });
+    }
+    return rows.reverse(); // terbaru di atas
+  }
+
+  let detailRows = [];
+  let detailCurrentPage = 1;
+  let detailPrevView = 'gold-list';
+
+  function openGoldDetail(serial) {
+    const gold = goldData[serial];
+    if (!gold) return;
+
+    // Track which view we came from
+    const activeView = document.querySelector('.dashboard-view.active');
+    detailPrevView = activeView ? activeView.id.replace('view-', '') : 'gold-list';
+
+    // Populate header
+    document.getElementById('detail-serial').textContent = serial;
+    document.getElementById('detail-title').textContent = gold.berat + ' — 24 Karat';
+    document.getElementById('detail-subtitle').textContent = 'Batch ' + gold.batch + ' · Diproduksi ' + gold.produksi;
+
+    // Status badge
+    const statusMap = {
+      normal:  '<span class="badge valid"><span class="badge-dot"></span>Normal</span>',
+      anomali: '<span class="badge warning"><span class="badge-dot"></span>Anomali</span>',
+      kritis:  '<span class="badge invalid"><span class="badge-dot"></span>Kritis</span>'
+    };
+    document.getElementById('detail-status-badge').innerHTML = statusMap[gold.status] || '';
+
+    // Populate detail fields
+    document.getElementById('d-serial').textContent   = serial;
+    document.getElementById('d-status').innerHTML     = statusMap[gold.status] || '—';
+    document.getElementById('d-berat').textContent    = gold.berat;
+    document.getElementById('d-kadar').textContent    = gold.kadar;
+    document.getElementById('d-produksi').textContent = gold.produksi;
+    document.getElementById('d-batch').textContent    = gold.batch;
+    document.getElementById('d-total-scan').textContent = gold.totalScan + ' kali';
+    document.getElementById('d-last-scan').textContent   = gold.lastScan + ' WIB';
+
+    // Back button
+    document.getElementById('detail-back-btn').onclick = () => {
+      switchViewById(detailPrevView);
+    };
+
+    // Generate and render table
+    detailRows = generateScanRows(serial);
+    detailCurrentPage = 1;
+    renderDetailTable();
+
+    // Switch to detail view
+    document.querySelectorAll('.dashboard-view').forEach(v => v.classList.remove('active'));
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    document.getElementById('view-gold-detail').classList.add('active');
+  }
+
+  function switchViewById(name) {
+    document.querySelectorAll('.dashboard-view').forEach(v => v.classList.remove('active'));
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    document.getElementById('view-' + name).classList.add('active');
+    // Re-highlight correct nav item
+    const navMap = { 'overview':'overview', 'scan-history':'scan-history', 'anomaly':'anomaly', 'gold-list':'gold-list' };
+    document.querySelectorAll('.nav-item').forEach(btn => {
+      if (btn.getAttribute('onclick') && btn.getAttribute('onclick').includes("'" + name + "'")) {
+        btn.classList.add('active');
+      }
+    });
+  }
+
+  function renderDetailTable() {
+    const rowsPerPage = parseInt(document.getElementById('rows-per-page').value);
+    const totalRows   = detailRows.length;
+    const totalPages  = Math.max(1, Math.ceil(totalRows / rowsPerPage));
+    if (detailCurrentPage > totalPages) detailCurrentPage = totalPages;
+
+    const start = (detailCurrentPage - 1) * rowsPerPage;
+    const end   = Math.min(start + rowsPerPage, totalRows);
+    const pageRows = detailRows.slice(start, end);
+
+    // Render rows
+    const tbody = document.getElementById('detail-table-body');
+    tbody.innerHTML = pageRows.map((r, i) => `
+      <tr>
+        <td style="color:var(--text-dim)">${String(start + i + 1).padStart(3, '0')}</td>
+        <td>${r.waktu}</td>
+        <td style="font-size:11px;color:var(--text-dim)">${r.ip}</td>
+        <td>${r.lokasi}</td>
+        <td style="text-align:center">${r.ke}</td>
+      </tr>
+    `).join('');
+
+    // Pagination info
+    document.getElementById('pagination-info').textContent =
+      `Menampilkan ${start + 1}–${end} dari ${totalRows} scan`;
+
+    // Pagination buttons
+    const ctrl = document.getElementById('pagination-controls');
+    ctrl.innerHTML = '';
+
+    const prevBtn = document.createElement('button');
+    prevBtn.className = 'page-btn';
+    prevBtn.textContent = '←';
+    prevBtn.disabled = detailCurrentPage === 1;
+    prevBtn.onclick = () => { detailCurrentPage--; renderDetailTable(); };
+    ctrl.appendChild(prevBtn);
+
+    // Page number buttons (max 5 shown)
+    const maxBtns = 5;
+    let startPage = Math.max(1, detailCurrentPage - 2);
+    let endPage   = Math.min(totalPages, startPage + maxBtns - 1);
+    if (endPage - startPage < maxBtns - 1) startPage = Math.max(1, endPage - maxBtns + 1);
+
+    for (let p = startPage; p <= endPage; p++) {
+      const btn = document.createElement('button');
+      btn.className = 'page-btn' + (p === detailCurrentPage ? ' active' : '');
+      btn.textContent = p;
+      btn.onclick = ((pg) => () => { detailCurrentPage = pg; renderDetailTable(); })(p);
+      ctrl.appendChild(btn);
+    }
+
+    const nextBtn = document.createElement('button');
+    nextBtn.className = 'page-btn';
+    nextBtn.textContent = '→';
+    nextBtn.disabled = detailCurrentPage === totalPages;
+    nextBtn.onclick = () => { detailCurrentPage++; renderDetailTable(); };
+    ctrl.appendChild(nextBtn);
+  }
+
+  // ---- Mobile sidebar toggle ----
+  function toggleSidebar() {
+    const sidebar = document.querySelector('.sidebar');
+    const overlay = document.getElementById('sidebar-overlay');
+    sidebar.classList.toggle('open');
+    overlay.classList.toggle('show');
+  }
+
+  function closeSidebar() {
+    const sidebar = document.querySelector('.sidebar');
+    const overlay = document.getElementById('sidebar-overlay');
+    sidebar.classList.remove('open');
+    overlay.classList.remove('show');
+  }
+
+  // Close sidebar when a nav item is clicked on mobile
+  document.querySelectorAll('.nav-item').forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (window.innerWidth <= 768) closeSidebar();
+    });
+  });
+
+  // ---- Page routing ----
+  function showPage(name) {
+    if (name === 'customer' && !preloaderDone) {
+      // Show preloader first, then reveal customer page
+      const preloader = document.getElementById('preloader');
+      preloader.classList.remove('hidden');
+      // Reset progress
+      document.getElementById('scan-progress').style.width = '0%';
+      document.getElementById('scan-status-text').innerHTML = 'Membaca <span>QR Code</span>...';
+
+      document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+      document.getElementById('page-customer').classList.add('active');
+
+      setTimeout(() => {
+        runPreloader(() => { preloaderDone = true; });
+      }, 80);
+    } else {
+      const preloader = document.getElementById('preloader');
+      preloader.classList.add('hidden');
+      document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+      document.getElementById('page-' + name).classList.add('active');
+    }
+  }
+
+  // ---- Login ----
+  function doLogin() {
+    const email = document.getElementById('login-email').value;
+    const pass = document.getElementById('login-pass').value;
+    const err = document.getElementById('login-error');
+    if (email === 'admin@pundimas.co.id' && pass === 'admin123') {
+      err.classList.remove('show');
+      showPage('dashboard');
+    } else {
+      err.classList.add('show');
+    }
+  }
+
+  // ---- Dashboard view switching ----
+  function switchView(name, btn) {
+    document.querySelectorAll('.dashboard-view').forEach(v => v.classList.remove('active'));
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    document.getElementById('view-' + name).classList.add('active');
+    btn.classList.add('active');
+  }
+
+  // ---- Set live time ----
+  function setTimes() {
+    const now = new Date();
+    const opts = { weekday:'long', year:'numeric', month:'long', day:'numeric' };
+    const timeStr = now.toLocaleTimeString('id-ID', { hour:'2-digit', minute:'2-digit', second:'2-digit' });
+    const dateStr = now.toLocaleDateString('id-ID', opts);
+
+    // Scan time: fixed at page load (simulates the moment QR was scanned)
+    const scanTime = document.getElementById('scan-time');
+    if (scanTime) scanTime.textContent = timeStr + ' WIB';
+
+    // Dashboard date: live clock is fine for admin panel
+    const dashDate = document.getElementById('dash-date');
+    if (dashDate) dashDate.innerHTML = dateStr + '<br><span style="color:var(--text-dim)">' + timeStr + ' WIB</span>';
+  }
+
+  // Customer scan time: set ONCE and never update again
+  const scanTime = document.getElementById('scan-time');
+  const scanTimeHistory = document.getElementById('scan-time-history');
+  const certScanTime = document.getElementById('cert-scan-time');
+  const scanTimeDesktop = document.getElementById('scan-time-desktop');
+  if (scanTime || scanTimeHistory || certScanTime) {
+    const now = new Date();
+    const timeStr = now.toLocaleTimeString('id-ID', { hour:'2-digit', minute:'2-digit' });
+    const dateStr = now.toLocaleDateString('id-ID', { day:'2-digit', month:'short', year:'numeric' });
+    const fullStr = dateStr + ', ' + timeStr + ' WIB';
+    if (scanTime) scanTime.textContent = fullStr;
+    if (scanTimeHistory) scanTimeHistory.textContent = fullStr;
+    if (certScanTime) certScanTime.textContent = fullStr;
+    if (scanTimeDesktop) scanTimeDesktop.textContent = fullStr;
+  }
+
+  // Show desktop-only scan info card when on desktop
+  function handleDesktopLayout() {
+    const isDesktop = window.innerWidth >= 1024;
+    const desktopCard = document.querySelector('.scan-info-card.desktop-only');
+    if (desktopCard) desktopCard.style.display = isDesktop ? 'block' : 'none';
+  }
+  handleDesktopLayout();
+  window.addEventListener('resize', handleDesktopLayout);
+
+  // Dashboard clock: live update only for admin
+  function updateDashClock() {
+    const now = new Date();
+    const opts = { weekday:'long', year:'numeric', month:'long', day:'numeric' };
+    const timeStr = now.toLocaleTimeString('id-ID', { hour:'2-digit', minute:'2-digit', second:'2-digit' });
+    const dateStr = now.toLocaleDateString('id-ID', opts);
+    const dashDate = document.getElementById('dash-date');
+    if (dashDate) dashDate.innerHTML = dateStr + '<br><span style="color:var(--text-dim)">' + timeStr + ' WIB</span>';
+  }
+
+  updateDashClock();
+  setInterval(updateDashClock, 1000);
+
+  // Auto-run preloader on initial load (customer page is default)
+  runPreloader(() => { preloaderDone = true; });
+</script>
+<!-- ==================== DEMO NAVIGATION ==================== -->
+<div class="demo-nav">
+  <button class="demo-btn" onclick="showPage('customer')">👁 Customer</button>
+  <button class="demo-btn" onclick="showPage('login')">🔐 Admin</button>
+</div>
+
+</body>
+</html>
